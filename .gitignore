@@ -209,3 +209,9 @@ __marimo__/
 # pixi environments
 .pixi
 *.egg-info
+
+
+# Personnal files 
+\!*
+images/
+.DS_Store

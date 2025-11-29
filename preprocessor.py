@@ -1,44 +1,48 @@
 import pandas as pd
 import numpy as np
 
-from constants import DISTANCE_TO_NEXT_POINT, SPEED
-
-time_interval = 0.1  # video time interval in seconds
-ratio_micron_per_pixel = 0.947  # microns per pixel
+from constants import (
+    DISTANCE_TO_NEXT_POINT,
+    SPEED,
+    TIME_INTERVAL,
+    RATIO_MICRON_PER_PIXEL,
+)
 
 
 class Preprocessor:
-    def __init__(self, spot_df, config):
-        self.spot_df = spot_df
+    """
+    This class handles preprocessing of spot data DataFrame.
+    The goal is to centralize all preprocessing steps here for easier maintenance.
+    """
+
+    def __init__(self, config):
         self.threshold_nspots = config.threshold_nspots
 
-    def sort_by_track_and_frame(self, inplace=False):
+    def sort_by_track_and_frame(self, spot_df):
         """Sort spot_df by TRACK_ID and FRAME"""
-        sorted_df = self.spot_df.sort_values(by=["TRACK_ID", "FRAME"]).reset_index(
-            drop=True
-        )
-        if inplace:
-            self.spot_df = sorted_df
+        sorted_df = spot_df.sort_values(by=["TRACK_ID", "FRAME"]).reset_index(drop=True)
         return sorted_df
 
-    def filter_tracks_nspots(self, inplace=False):
+    def filter_tracks_nspots(self, spot_df):
         """Filter tracks with nspots < threshold_nspots"""
-        print(f" Starting spot_df size: {len(self.spot_df)}")
-        track_counts = self.spot_df.TRACK_ID.value_counts()
+
+        print(f" Starting spot_df size: {len(spot_df)}")
+        track_counts = spot_df.TRACK_ID.value_counts()
         valid_tracks = track_counts[track_counts >= self.threshold_nspots].index
-        filtered_df = self.spot_df[
-            self.spot_df.TRACK_ID.isin(valid_tracks)
-        ].reset_index(drop=True)
+        filtered_df = spot_df[spot_df.TRACK_ID.isin(valid_tracks)].reset_index(
+            drop=True
+        )
         print(f" Filtered spot_df size: {len(filtered_df)}")
-        if inplace:
-            self.spot_df = filtered_df
         return filtered_df
 
-    def interpolate_missing_frames(self, inplace=False):
-        """Interpolate missing frames in tracks (linear interpolation)"""
+    def interpolate_missing_frames(self, spot_df):
+        """Interpolate missing frames in tracks (linear interpolation)
+        Only valid if if the number of missing frames is small in time and we assume a constant speed between frames
+        """
+
         interpolated_dfs = []
         counter = 0
-        for track_id, group in self.spot_df.groupby("TRACK_ID"):
+        for track_id, group in spot_df.groupby("TRACK_ID"):
             new_group = group.set_index("FRAME").reindex(
                 range(group["FRAME"].min(), group["FRAME"].max() + 1)
             )
@@ -50,13 +54,13 @@ class Preprocessor:
             interpolated_dfs.append(new_group.reset_index())
         interpolated_df = pd.concat(interpolated_dfs).reset_index(drop=True)
         print(f"Interpolated {counter} missing frames across all tracks.")
-        if inplace:
-            self.spot_df = interpolated_df
+
         return interpolated_df
 
-    def add_distance_to_next_point(self, inplace=False):
+    def add_distance_to_next_point(self, spot_df):
         """Add a column with distance to next point for each spot"""
-        df = self.spot_df.copy()
+
+        df = spot_df.copy()
         df[DISTANCE_TO_NEXT_POINT] = 0.0
         for track_id, group in df.groupby("TRACK_ID"):
             positions = group[["POSITION_X", "POSITION_Y"]].values
@@ -65,16 +69,15 @@ class Preprocessor:
             df.loc[group.index[-1], DISTANCE_TO_NEXT_POINT] = (
                 0.0  # Last point has no next point
             )
-        if inplace:
-            self.spot_df = df
         return df
 
-    def compute_speed(self, inplace=False):
-        """Compute speed as distance to next point divided by time interval (assuming constant time interval)"""
-        df = self.spot_df.copy()
+    def compute_speed(self, spot_df):
+        """
+        Compute speed as distance to next point divided by time interval (assuming constant time interval)
+        Only valid if distance to next point has been computed and interpolated missing frames
+        """
+        df = spot_df.copy()
         df[SPEED] = (
-            df[DISTANCE_TO_NEXT_POINT] / time_interval * ratio_micron_per_pixel
+            df[DISTANCE_TO_NEXT_POINT] / TIME_INTERVAL * RATIO_MICRON_PER_PIXEL
         )  # Assuming time interval = 1 unit
-        if inplace:
-            self.spot_df = df
         return df
