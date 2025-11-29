@@ -39,9 +39,9 @@ All these notebbok arleady have some experiments loaded as example with insightf
 
 ## Assumptions : 
 * Naming convention of data folders and files : 
-    * Folder : {medium}_*_{optical_density}_{run_number} with optical density written as string (0P2 for 0.2)
+    * Folder : {medium}\_*\_{optical_density}_{run_number} with optical density written as string (0P2 for 0.2)
     * File : _allspots.csv 
-* Constants defined in constants.py : time interval between frames and micron per pixel ratio
+* Constants defined in [constants.py](constants.py) : time interval between frames and micron per pixel ratio
 * "Run" can have 2 significations in this repo : Do not mix them up !
     * "run" when it's in the context of experiment : repeat of the same experiment (same medium, same optical density)
     * "run" in context of track labeling : kinda linear segment, not a tumble 
